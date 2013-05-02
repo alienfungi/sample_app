@@ -1,4 +1,9 @@
 class UsersController < ApplicationController
+  before_filter :signed_in_user, only: [:index, :edit, :update]
+  before_filter :not_signed_in_user, only: [:create, :new]
+  before_filter :correct_user, only: [:edit, :update]
+  before_filter :admin_user, only: :destroy
+
 	def show
 		@user = User.find(params[:id])
 	end
@@ -17,4 +22,55 @@ class UsersController < ApplicationController
   		render 'new'
   	end
   end
+
+  def index
+    @users = User.paginate(page: params[:page])
+  end
+
+  def edit
+  end
+
+  def update
+    if @user.update_attributes(params[:user])
+      flash[:success] = "Profile updated"
+      sign_in @user
+      redirect_to @user
+    else
+      render 'edit'
+    end
+  end
+
+  def destroy
+    @user = User.find(params[:id])
+    #puts "to_be_deleted: #{to_be_deleted.id}, user: #{@user}"
+    if(!current_user?(@user))
+      @user.destroy
+      flash[:success] = "User destroyed."
+    else
+      flash[:failure] = "Cannot destroy self."
+    end
+    redirect_to users_url
+  end
+
+  private
+
+    def signed_in_user
+      unless signed_in?
+        store_location
+        redirect_to signin_url, notice: "Please sign in."
+      end
+    end
+
+    def not_signed_in_user
+      redirect_to root_path, notice: "You are already signed in." if signed_in?
+    end
+
+    def correct_user
+      @user = User.find(params[:id])
+      redirect_to(root_path) unless current_user?(@user)
+    end
+
+    def admin_user
+      redirect_to(root_path) unless current_user.admin?
+    end
 end
